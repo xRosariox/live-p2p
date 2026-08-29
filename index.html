@@ -9,13 +9,16 @@
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #0e0e10; color: #efeff1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
     .card { background: #18181b; border: 1px solid #26262c; border-radius: 12px; padding: 24px; width: 100%; max-width: 700px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }
-    h2 { color: #fff; margin-bottom: 20px; font-size: 22px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    h2 { color: #fff; margin-bottom: 20px; font-size: 22px; }
     .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; text-align: left; }
     label { font-size: 13px; color: #adadb8; font-weight: 600; text-transform: uppercase; margin-bottom: 5px; display: block; }
-    select { width: 100%; padding: 10px; background: #1f1f23; color: #fff; border: 1px solid #3a3a3d; border-radius: 6px; font-size: 14px; outline: none; transition: 0.2s; }
+    select { width: 100%; padding: 10px; background: #1f1f23; color: #fff; border: 1px solid #3a3a3d; border-radius: 6px; font-size: 14px; outline: none; }
     select:focus { border-color: #9146ff; }
-    .btn-start { width: 100%; padding: 14px; background: #9146ff; color: #fff; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-action { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-start { background: #9146ff; color: #fff; }
     .btn-start:hover { background: #772ce8; }
+    .btn-stop { background: #eb0400; color: #fff; display: none; }
+    .btn-stop:hover { background: #c20300; }
     .status-bar { margin-top: 20px; display: none; align-items: center; justify-content: space-between; background: #1f1f23; padding: 12px 18px; border-radius: 6px; border: 1px solid #26262c; }
     .badge-live { background: #eb0400; color: #fff; font-size: 12px; font-weight: bold; padding: 4px 8px; border-radius: 4px; animation: pulse 1.5s infinite; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -32,9 +35,9 @@
 <body>
 
   <div class="card">
-    <h2>🔴 Transmissão P2P</h2>
+    <h2>🔴 Painel do Transmissor</h2>
 
-    <div class="controls-grid">
+    <div class="controls-grid" id="configsGrid">
       <div>
         <label>Resolução</label>
         <select id="resSelect">
@@ -55,7 +58,8 @@
       </div>
     </div>
 
-    <button class="btn-start" id="startBtn" onclick="iniciar()">Iniciar Transmissão</button>
+    <button class="btn-action btn-start" id="startBtn" onclick="iniciar()">Iniciar Transmissão</button>
+    <button class="btn-action btn-stop" id="stopBtn" onclick="parar()">Parar Transmissão</button>
 
     <div class="status-bar" id="statusBar">
       <span class="badge-live">AO VIVO</span>
@@ -100,6 +104,11 @@
       }, 1000);
     }
 
+    function stopTimer() {
+      clearInterval(timerInterval);
+      document.getElementById('timer').innerText = "00:00:00";
+    }
+
     function copiarLink() {
       const input = document.getElementById('shareLink');
       input.select();
@@ -122,6 +131,9 @@
           audio: true
         });
 
+        // Encerra a live se o usuário clicar no botão "Parar Compartilhamento" nativo do navegador
+        localStream.getVideoTracks()[0].onended = () => parar();
+
         document.getElementById('preview').srcObject = localStream;
 
         const roomId = 'live-' + Math.random().toString(36).substring(2, 8);
@@ -135,7 +147,9 @@
           document.getElementById('linkArea').style.display = 'block';
           document.getElementById('statusBar').style.display = 'flex';
           document.getElementById('qualidadeBadge').innerText = `${resKey}p @ ${fpsVal}FPS`;
+          
           document.getElementById('startBtn').style.display = 'none';
+          document.getElementById('stopBtn').style.display = 'block';
           
           startTimer();
         });
@@ -163,6 +177,24 @@
       } catch (err) {
         alert("Erro ao capturar tela: " + err.message);
       }
+    }
+
+    function parar() {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      if (peer) {
+        peer.destroy();
+        peer = null;
+      }
+
+      stopTimer();
+      document.getElementById('preview').srcObject = null;
+      document.getElementById('linkArea').style.display = 'none';
+      document.getElementById('statusBar').style.display = 'none';
+      document.getElementById('startBtn').style.display = 'block';
+      document.getElementById('stopBtn').style.display = 'none';
     }
   </script>
 </body>
