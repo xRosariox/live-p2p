@@ -4,57 +4,91 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel do Transmissor - P2P HD</title>
+
+  <!-- Biblioteca PeerJS carregada via CDN (unpkg) -->
+  <!-- PeerJS é um wrapper sobre WebRTC que simplifica a criação de conexões P2P -->
+  <!-- Versão fixada em 1.5.2 para evitar quebras com atualizações futuras -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <!-- Estilos visuais da página do transmissor -->
   <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
 
+  <!-- Card central: agrupa todos os controles e o preview da transmissão -->
   <div class="card">
     <h2>🔴 Transmissão P2P</h2>
 
+    <!-- Grade de configurações: resolução e FPS lado a lado -->
+    <!-- id="configsGrid" existe no HTML mas não é usado no JS atual (apenas estilo) -->
     <div class="controls-grid" id="configsGrid">
+
+      <!-- Seletor de resolução -->
+      <!-- O valor de cada <option> (ex: "1080") é a chave usada no mapa "resolucoes" do JS -->
       <div>
         <label for="resSelect">Resolução</label>
         <select id="resSelect">
           <option value="720">720p (HD)</option>
-          <option value="1080" selected>1080p (Full HD)</option>
+          <option value="1080" selected>1080p (Full HD)</option> <!-- Padrão selecionado -->
           <option value="1440">1440p (2K)</option>
           <option value="2160">2160p (4K)</option>
         </select>
       </div>
+
+      <!-- Seletor de taxa de quadros (FPS) -->
       <div>
         <label for="fpsSelect">Taxa de Quadros</label>
         <select id="fpsSelect">
           <option value="30">30 FPS</option>
           <option value="60">60 FPS</option>
           <option value="120">120 FPS</option>
-          <option value="144" selected>144 FPS</option>
+          <option value="144" selected>144 FPS</option> <!-- Padrão selecionado -->
         </select>
       </div>
     </div>
 
+    <!-- Botão para iniciar a transmissão — chama a função iniciar() do JS -->
     <button class="btn-action btn-start" id="startBtn" onclick="iniciar()">Iniciar Transmissão</button>
+
+    <!-- Botão para parar a transmissão — começa escondido (display:none no CSS) -->
+    <!-- Só aparece depois que a transmissão começa, via JS -->
     <button class="btn-action btn-stop" id="stopBtn" onclick="parar()">🔴 Parar Transmissão</button>
 
+    <!-- Barra de status "AO VIVO" — fica escondida até a transmissão iniciar -->
+    <!-- O JS alterna display:none / display:flex nesse elemento -->
     <div class="status-bar" id="statusBar">
+      <!-- Badge pulsante vermelho "AO VIVO" (animação CSS) -->
       <span class="badge-live">AO VIVO</span>
+
+      <!-- Mostra a qualidade atual, ex: "1080p @ 60FPS" — preenchido pelo JS -->
       <span id="qualidadeBadge"></span>
+
+      <!-- Cronômetro de tempo ao vivo, ex: "00:05:32" — atualizado pelo JS a cada segundo -->
       <span class="timer" id="timer">00:00:00</span>
     </div>
 
+    <!-- Caixa com o link para compartilhar com espectadores — fica escondida até iniciar -->
     <div class="link-box" id="linkArea">
       <label for="shareLink">Link do Espectador</label>
       <div class="input-group">
+        <!-- Campo somente leitura onde o JS escreve o link gerado -->
         <input type="text" id="shareLink" readonly>
+        <!-- Botão que chama copiarLink() para copiar o link pro clipboard -->
         <button class="btn-copy" onclick="copiarLink()">Copiar</button>
       </div>
     </div>
 
+    <!-- Container do preview local: o transmissor vê aqui o que está transmitindo -->
+    <!-- O JS define previewVideo.srcObject = localStream para exibir a captura de tela -->
     <div class="video-container">
       <video id="preview" autoplay muted></video>
+      <!-- autoplay: inicia automaticamente quando recebe o stream -->
+      <!-- muted: sem áudio no preview para evitar eco -->
     </div>
   </div>
 
+  <!-- Script principal carregado no final do body para garantir que o HTML já foi carregado -->
+  <!-- (as funções no JS precisam encontrar os elementos acima pelo id) -->
   <script src="js/index.js"></script>
 </body>
 </html>

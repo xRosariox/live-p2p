@@ -4,18 +4,36 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Assistindo Transmissão P2P</title>
+
+  <!-- Mesma versão do PeerJS usada no transmissor -->
+  <!-- Necessário para que transmissor e espectador "falem a mesma língua" -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+  <!-- Estilos da página do espectador (tela cheia, fundo preto) -->
   <link rel="stylesheet" href="css/espectador.css">
 </head>
 <body>
 
+  <!-- Container principal: ocupa 100% da tela (definido no CSS) -->
+  <!-- Centraliza o vídeo e posiciona o overlay de status por cima -->
   <div class="video-container">
+
+    <!-- Overlay de status: mensagem exibida sobre o vídeo durante a conexão -->
+    <!-- O JS atualiza o texto conforme o estado: "Conectando...", "Aguardando vídeo...", etc. -->
+    <!-- Quando o vídeo começa, o JS esconde esse elemento com style.display = 'none' -->
     <div class="overlay-status" id="statusOverlay">
       Conectando à transmissão...
     </div>
+
+    <!-- Elemento de vídeo onde o stream do transmissor será exibido -->
+    <!-- autoplay: tenta dar play assim que o stream chegar -->
+    <!-- playsinline: necessário em iOS para não abrir em tela cheia forçada -->
+    <!-- controls: exibe os controles nativos do navegador (play/pause, volume, fullscreen) -->
     <video id="remoteVideo" autoplay playsinline controls></video>
   </div>
 
+  <!-- Script do espectador carregado no final do body -->
+  <!-- Lê o ?room= da URL e inicia a conexão P2P com o transmissor -->
   <script src="js/espectador.js"></script>
 </body>
 </html>
