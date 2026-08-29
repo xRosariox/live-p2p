@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Espectador P2P</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    body { font-family: sans-serif; background: #000; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }
+    #status { position: absolute; top: 20px; font-weight: bold; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; color: #ffc107; }
+    video { width: 95vw; height: 85vh; background: #111; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div id="status">Conectando à live...</div>
+  <video id="remoteVideo" autoplay playsinline controls></video>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room');
+
+    if (!roomId) {
+      document.getElementById('status').innerText = "Link inválido. Nenhuma sala encontrada.";
+      document.getElementById('status').style.color = "#dc3545";
+    } else {
+      const peer = new Peer();
+
+      peer.on('open', () => {
+        const call = peer.call(roomId, null);
+
+        call.on('stream', (remoteStream) => {
+          document.getElementById('remoteVideo').srcObject = remoteStream;
+          document.getElementById('status').innerText = "🟢 ASSISTINDO AO VIVO";
+          document.getElementById('status').style.color = "#28a745";
+        });
+
+        call.on('close', () => {
+          document.getElementById('status').innerText = "A transmissão foi encerrada.";
+          document.getElementById('status').style.color = "#dc3545";
+        });
+      });
+
+      peer.on('error', () => {
+        document.getElementById('status').innerText = "Transmissão não encontrada ou finalizada.";
+        document.getElementById('status').style.color = "#dc3545";
+      });
+    }
+  </script>
+</body>
+</html>
