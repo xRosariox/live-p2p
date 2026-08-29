@@ -2,18 +2,40 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Transmissor P2P High-FPS</title>
+  <title>Transmissor P2P - Configuração de Qualidade</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; text-align: center; }
+    .controls { background: #1e1e1e; padding: 20px; border-radius: 8px; display: inline-block; margin-bottom: 15px; border: 1px solid #333; }
+    label { font-weight: bold; margin-right: 10px; }
+    select { padding: 8px 12px; background: #2b2b2b; color: #fff; border: 1px solid #444; border-radius: 4px; margin-right: 20px; font-size: 14px; }
     button { padding: 12px 24px; background: #007bff; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; }
     input { width: 80%; max-width: 500px; padding: 10px; background: #222; color: #28a745; border: 1px solid #444; border-radius: 6px; font-size: 14px; text-align: center; margin: 10px 0; }
     video { width: 100%; max-width: 640px; border-radius: 8px; border: 1px solid #333; margin-top: 15px; }
   </style>
 </head>
 <body>
-  <h2>🔴 Transmissor P2P (2K @ 144 FPS)</h2>
-  <button onclick="iniciar()">Iniciar Transmissão</button><br><br>
+  <h2>🔴 Transmissor P2P</h2>
+
+  <div class="controls">
+    <label for="resSelect">Resolução:</label>
+    <select id="resSelect">
+      <option value="720">720p (HD)</option>
+      <option value="1080" selected>1080p (Full HD)</option>
+      <option value="1440">1440p (2K)</option>
+      <option value="2160">2160p (4K)</option>
+    </select>
+
+    <label for="fpsSelect">FPS:</label>
+    <select id="fpsSelect">
+      <option value="30">30 FPS</option>
+      <option value="60">60 FPS</option>
+      <option value="120">120 FPS</option>
+      <option value="144" selected>144 FPS</option>
+    </select>
+    <br><br>
+    <button onclick="iniciar()">Iniciar Transmissão</button>
+  </div>
 
   <div id="linkArea" style="display:none;">
     <p>Link para o Espectador:</p>
@@ -27,14 +49,25 @@
     let peer = null;
     let localStream = null;
 
+    // Resoluções predefinidas (largura x altura)
+    const resolucoes = {
+      "720": { width: 1280, height: 720 },
+      "1080": { width: 1920, height: 1080 },
+      "1440": { width: 2560, height: 1440 },
+      "2160": { width: 3840, height: 2160 }
+    };
+
     async function iniciar() {
+      const resKey = document.getElementById('resSelect').value;
+      const fpsVal = parseInt(document.getElementById('fpsSelect').value);
+      const resConfig = resolucoes[resKey];
+
       try {
-        // Solicitando explicitamente 2K e 144 FPS no navegador
         localStream = await navigator.mediaDevices.getDisplayMedia({
           video: {
-            width: { ideal: 2560, max: 2560 },
-            height: { ideal: 1440, max: 1440 },
-            frameRate: { ideal: 144, max: 144 }
+            width: { ideal: resConfig.width, max: resConfig.width },
+            height: { ideal: resConfig.height, max: resConfig.height },
+            frameRate: { ideal: fpsVal, max: fpsVal }
           },
           audio: true
         });
@@ -50,22 +83,28 @@
           
           document.getElementById('shareLink').value = fullLink;
           document.getElementById('linkArea').style.display = 'block';
-          document.getElementById('status').innerText = "🟢 TRANSMITINDO EM ALTA PERFORMANCE!";
+          document.getElementById('status').innerText = `🟢 TRANSMITINDO EM ${resKey}p @ ${fpsVal}FPS!`;
           document.getElementById('status').style.color = "#28a745";
         });
 
-        // Quando o espectador conecta via dados, o transmissor inicia a chamada
         peer.on('connection', (conn) => {
           conn.on('open', () => {
             const call = peer.call(conn.peer, localStream);
             
-            // Removendo limites de bitrate para suportar os 144fps em 2K
+            // Ajusta o bitrate proporcionalmente à resolução selecionada
             if (call && call.peerConnection) {
               call.peerConnection.getSenders().forEach(sender => {
                 if (sender.track && sender.track.kind === 'video') {
                   const parameters = sender.getParameters();
                   if (!parameters.encodings) parameters.encodings = [{}];
-                  parameters.encodings[0].maxBitrate = 25000000; // 25 Mbps
+                  
+                  // Bitrate dinâmico baseado no perfil selecionado
+                  let targetBitrate = 12000000; // 12 Mbps padrão (1080p/60+)
+                  if (resKey === "1440" || resKey === "2160" || fpsVal >= 120) {
+                    targetBitrate = 30000000; // 30 Mbps para alta resolução / alto FPS
+                  }
+
+                  parameters.encodings[0].maxBitrate = targetBitrate;
                   sender.setParameters(parameters).catch(e => console.error(e));
                 }
               });
