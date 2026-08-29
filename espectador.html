@@ -6,7 +6,7 @@
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     body { font-family: sans-serif; background: #000; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }
-    #status { position: absolute; top: 20px; font-weight: bold; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; color: #ffc107; }
+    #status { position: absolute; top: 20px; font-weight: bold; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; color: #ffc107; z-index: 10; }
     video { width: 95vw; height: 85vh; background: #111; border-radius: 8px; }
   </style>
 </head>
@@ -25,22 +25,32 @@
       const peer = new Peer();
 
       peer.on('open', () => {
-        const call = peer.call(roomId, null);
-
-        call.on('stream', (remoteStream) => {
-          document.getElementById('remoteVideo').srcObject = remoteStream;
-          document.getElementById('status').innerText = "🟢 ASSISTINDO AO VIVO";
-          document.getElementById('status').style.color = "#28a745";
-        });
-
-        call.on('close', () => {
-          document.getElementById('status').innerText = "A transmissão foi encerrada.";
-          document.getElementById('status').style.color = "#dc3545";
-        });
+        solicitarTransmissao(peer, roomId);
       });
 
-      peer.on('error', () => {
-        document.getElementById('status').innerText = "Transmissão não encontrada ou finalizada.";
+      peer.on('error', (err) => {
+        document.getElementById('status').innerText = "Erro na conexão ou live encerrada.";
+        document.getElementById('status').style.color = "#dc3545";
+      });
+    }
+
+    function solicitarTransmissao(peer, targetRoom) {
+      const call = peer.call(targetRoom, null);
+
+      if (!call) {
+        document.getElementById('status').innerText = "Não foi possível conectar. Tentando novamente...";
+        setTimeout(() => solicitarTransmissao(peer, targetRoom), 2000);
+        return;
+      }
+
+      call.on('stream', (remoteStream) => {
+        document.getElementById('remoteVideo').srcObject = remoteStream;
+        document.getElementById('status').innerText = "🟢 ASSISTINDO AO VIVO";
+        document.getElementById('status').style.color = "#28a745";
+      });
+
+      call.on('close', () => {
+        document.getElementById('status').innerText = "A transmissão foi encerrada.";
         document.getElementById('status').style.color = "#dc3545";
       });
     }
