@@ -2,48 +2,111 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Espectador P2P</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    body { font-family: sans-serif; background: #000; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }
-    #status { position: absolute; top: 20px; font-weight: bold; background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 8px; color: #ffc107; z-index: 10; }
-    video { width: 95vw; height: 85vh; background: #111; border-radius: 8px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #000; color: #fff; height: 100vh; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    
+    .player-wrapper { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; background: #050505; }
+    video { width: 100%; height: 100%; object-fit: contain; }
+
+    /* Header de Status */
+    .header-overlay { position: absolute; top: 20px; left: 20px; display: flex; align-items: center; gap: 12px; background: rgba(0, 0, 0, 0.7); padding: 10px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); z-index: 10; }
+    .badge-live { background: #eb0400; color: #fff; font-size: 11px; font-weight: bold; padding: 3px 6px; border-radius: 4px; }
+    .timer { font-family: monospace; font-size: 14px; color: #adadb8; }
+
+    /* Barra de Controles Customizada */
+    .controls-overlay { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 15px; background: rgba(0, 0, 0, 0.8); padding: 12px 24px; border-radius: 30px; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); z-index: 10; transition: opacity 0.3s; }
+    .btn-control { background: none; border: none; color: #fff; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+    .volume-container { display: flex; align-items: center; gap: 10px; }
+    input[type="range"] { accent-color: #9146ff; cursor: pointer; width: 100px; }
   </style>
 </head>
 <body>
-  <div id="status">Conectando à live...</div>
-  <video id="remoteVideo" autoplay playsinline controls></video>
+
+  <div class="player-wrapper">
+    <div class="header-overlay">
+      <span class="badge-live" id="statusBadge">CONECTANDO</span>
+      <span class="timer" id="timer">00:00:00</span>
+    </div>
+
+    <video id="remoteVideo" autoplay playsinline></video>
+
+    <div class="controls-overlay" id="controls">
+      <button class="btn-control" id="muteBtn" onclick="toggleMute()">🔊</button>
+      <div class="volume-container">
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" oninput="changeVolume(this.value)">
+      </div>
+      <button class="btn-control" onclick="toggleFullscreen()">🗖</button>
+    </div>
+  </div>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const roomId = urlParams.get('room');
+    const video = document.getElementById('remoteVideo');
+    let timerInterval = null;
+    let secondsElapsed = 0;
 
-    if (!roomId) {
-      document.getElementById('status').innerText = "Link inválido. Nenhuma sala encontrada.";
-      document.getElementById('status').style.color = "#dc3545";
-    } else {
+    function startTimer() {
+      secondsElapsed = 0;
+      timerInterval = setInterval(() => {
+        secondsElapsed++;
+        const hrs = String(Math.floor(secondsElapsed / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
+        const secs = String(secondsElapsed % 60).padStart(2, '0');
+        document.getElementById('timer').innerText = `${hrs}:${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function changeVolume(val) {
+      video.volume = val;
+      video.muted = val == 0;
+      document.getElementById('muteBtn').innerText = val == 0 ? '🔇' : '🔊';
+    }
+
+    function toggleMute() {
+      video.muted = !video.muted;
+      const slider = document.getElementById('volumeSlider');
+      if (video.muted) {
+        document.getElementById('muteBtn').innerText = '🔇';
+        slider.value = 0;
+      } else {
+        document.getElementById('muteBtn').innerText = '🔊';
+        slider.value = video.volume || 1;
+      }
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    if (roomId) {
       const peer = new Peer();
 
       peer.on('open', () => {
         const conn = peer.connect(roomId);
-        conn.on('open', () => {
-          document.getElementById('status').innerText = "Solicitando transmissão...";
-        });
       });
 
       peer.on('call', (call) => {
         call.answer();
         call.on('stream', (remoteStream) => {
-          const videoElement = document.getElementById('remoteVideo');
-          videoElement.srcObject = remoteStream;
-          document.getElementById('status').innerText = "🟢 ASSISTINDO AO VIVO";
-          document.getElementById('status').style.color = "#28a745";
+          video.srcObject = remoteStream;
+          document.getElementById('statusBadge').innerText = "AO VIVO";
+          document.getElementById('statusBadge').style.background = "#eb0400";
+          startTimer();
         });
       });
 
-      peer.on('error', (err) => {
-        document.getElementById('status').innerText = "Transmissão não encontrada ou offline.";
-        document.getElementById('status').style.color = "#dc3545";
+      peer.on('error', () => {
+        document.getElementById('statusBadge').innerText = "OFFLINE";
+        document.getElementById('statusBadge').style.background = "#53535f";
       });
     }
   </script>
