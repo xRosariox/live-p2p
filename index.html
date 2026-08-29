@@ -5,31 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel do Transmissor - P2P HD</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #0e0e10; color: #efeff1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 15px; }
-    .card { background: #18181b; border: 1px solid #26262c; border-radius: 12px; padding: 20px; width: 100%; max-width: 700px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); text-align: center; }
-    h2 { color: #fff; margin-bottom: 20px; font-size: 20px; }
-    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; text-align: left; }
-    @media (max-width: 480px) { .controls-grid { grid-template-columns: 1fr; } }
-    label { font-size: 12px; color: #adadb8; font-weight: 600; text-transform: uppercase; margin-bottom: 5px; display: block; }
-    select { width: 100%; padding: 10px; background: #1f1f23; color: #fff; border: 1px solid #3a3a3d; border-radius: 6px; font-size: 14px; outline: none; }
-    .btn-action { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-    .btn-start { background: #9146ff; color: #fff; }
-    .btn-start:hover { background: #772ce8; }
-    .btn-stop { background: #eb0400; color: #fff; display: none; }
-    .btn-stop:hover { background: #c20300; }
-    .status-bar { margin-top: 20px; display: none; align-items: center; justify-content: space-between; background: #1f1f23; padding: 12px 18px; border-radius: 6px; border: 1px solid #26262c; }
-    .badge-live { background: #eb0400; color: #fff; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 4px; animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-    .timer { font-family: monospace; font-size: 15px; color: #adadb8; }
-    .link-box { margin-top: 15px; display: none; text-align: left; }
-    .input-group { display: flex; gap: 8px; margin-top: 6px; }
-    input[type="text"] { flex: 1; padding: 10px; background: #0e0e10; color: #00f593; border: 1px solid #3a3a3d; border-radius: 6px; font-size: 13px; outline: none; }
-    .btn-copy { padding: 10px 16px; background: #26262c; color: #fff; border: 1px solid #3a3a3d; border-radius: 6px; cursor: pointer; font-weight: 600; }
-    .video-container { margin-top: 20px; position: relative; width: 100%; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid #26262c; }
-    video { width: 100%; display: block; }
-  </style>
+  <link rel="stylesheet" href="css/index.css">
 </head>
 <body>
 
@@ -38,7 +14,7 @@
 
     <div class="controls-grid" id="configsGrid">
       <div>
-        <label>Resolução</label>
+        <label for="resSelect">Resolução</label>
         <select id="resSelect">
           <option value="720">720p (HD)</option>
           <option value="1080" selected>1080p (Full HD)</option>
@@ -47,7 +23,7 @@
         </select>
       </div>
       <div>
-        <label>Taxa de Quadros</label>
+        <label for="fpsSelect">Taxa de Quadros</label>
         <select id="fpsSelect">
           <option value="30">30 FPS</option>
           <option value="60">60 FPS</option>
@@ -62,12 +38,12 @@
 
     <div class="status-bar" id="statusBar">
       <span class="badge-live">AO VIVO</span>
-      <span id="qualidadeBadge" style="font-size: 13px; color: #fff;"></span>
+      <span id="qualidadeBadge"></span>
       <span class="timer" id="timer">00:00:00</span>
     </div>
 
     <div class="link-box" id="linkArea">
-      <label>Link do Espectador</label>
+      <label for="shareLink">Link do Espectador</label>
       <div class="input-group">
         <input type="text" id="shareLink" readonly>
         <button class="btn-copy" onclick="copiarLink()">Copiar</button>
@@ -79,134 +55,6 @@
     </div>
   </div>
 
-  <script>
-    let peer = null;
-    let localStream = null;
-    let timerInterval = null;
-    let secondsElapsed = 0;
-
-    const peerConfig = {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
-      }
-    };
-
-    const resolucoes = {
-      "720": { width: 1280, height: 720 },
-      "1080": { width: 1920, height: 1080 },
-      "1440": { width: 2560, height: 1440 },
-      "2160": { width: 3840, height: 2160 }
-    };
-
-    function startTimer() {
-      secondsElapsed = 0;
-      timerInterval = setInterval(() => {
-        secondsElapsed++;
-        const hrs = String(Math.floor(secondsElapsed / 3600)).padStart(2, '0');
-        const mins = String(Math.floor((secondsElapsed % 3600) / 60)).padStart(2, '0');
-        const secs = String(secondsElapsed % 60).padStart(2, '0');
-        document.getElementById('timer').innerText = `${hrs}:${mins}:${secs}`;
-      }, 1000);
-    }
-
-    function stopTimer() {
-      clearInterval(timerInterval);
-      document.getElementById('timer').innerText = "00:00:00";
-    }
-
-    function copiarLink() {
-      const input = document.getElementById('shareLink');
-      input.select();
-      navigator.clipboard.writeText(input.value);
-      alert("Link copiado!");
-    }
-
-    async function iniciar() {
-      const resKey = document.getElementById('resSelect').value;
-      const fpsVal = parseInt(document.getElementById('fpsSelect').value);
-      const resConfig = resolucoes[resKey];
-
-      try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            width: { ideal: resConfig.width },
-            height: { ideal: resConfig.height },
-            frameRate: { ideal: fpsVal }
-          },
-          audio: true,
-          selfBrowserSurface: "exclude"
-        });
-
-        const previewVideo = document.getElementById('preview');
-        previewVideo.srcObject = localStream;
-        previewVideo.muted = true;
-
-        localStream.getVideoTracks()[0].onended = () => parar();
-
-        const roomId = 'live-' + Math.random().toString(36).substring(2, 8);
-        peer = new Peer(roomId, peerConfig);
-
-        peer.on('open', (id) => {
-          const baseUrl = window.location.href.replace('index.html', '').split('?')[0];
-          const fullLink = `${baseUrl}espectador.html?room=${id}`;
-          
-          document.getElementById('shareLink').value = fullLink;
-          document.getElementById('linkArea').style.display = 'block';
-          document.getElementById('statusBar').style.display = 'flex';
-          document.getElementById('qualidadeBadge').innerText = `${resKey}p @ ${fpsVal}FPS`;
-          
-          document.getElementById('startBtn').style.display = 'none';
-          document.getElementById('stopBtn').style.display = 'block';
-          
-          startTimer();
-        });
-
-        peer.on('connection', (conn) => {
-          conn.on('open', () => {
-            const call = peer.call(conn.peer, localStream);
-            if (call && call.peerConnection) {
-              call.peerConnection.getSenders().forEach(sender => {
-                if (sender.track && sender.track.kind === 'video') {
-                  const parameters = sender.getParameters();
-                  if (!parameters.encodings) parameters.encodings = [{}];
-                  let targetBitrate = 12000000;
-                  if (resKey === "1440" || resKey === "2160" || fpsVal >= 120) {
-                    targetBitrate = 30000000;
-                  }
-                  parameters.encodings[0].maxBitrate = targetBitrate;
-                  sender.setParameters(parameters).catch(e => console.error(e));
-                }
-              });
-            }
-          });
-        });
-
-      } catch (err) {
-        alert("Erro ao iniciar transmissão: " + err.message);
-      }
-    }
-
-    function parar() {
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      if (peer) {
-        peer.destroy();
-        peer = null;
-      }
-
-      stopTimer();
-      document.getElementById('preview').srcObject = null;
-      document.getElementById('linkArea').style.display = 'none';
-      document.getElementById('statusBar').style.display = 'none';
-      document.getElementById('startBtn').style.display = 'block';
-      document.getElementById('stopBtn').style.display = 'none';
-    }
-  </script>
+  <script src="js/index.js"></script>
 </body>
 </html>
