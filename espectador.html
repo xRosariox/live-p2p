@@ -25,32 +25,24 @@
       const peer = new Peer();
 
       peer.on('open', () => {
-        solicitarTransmissao(peer, roomId);
+        const conn = peer.connect(roomId);
+        conn.on('open', () => {
+          document.getElementById('status').innerText = "Solicitando transmissão...";
+        });
+      });
+
+      peer.on('call', (call) => {
+        call.answer();
+        call.on('stream', (remoteStream) => {
+          const videoElement = document.getElementById('remoteVideo');
+          videoElement.srcObject = remoteStream;
+          document.getElementById('status').innerText = "🟢 ASSISTINDO AO VIVO";
+          document.getElementById('status').style.color = "#28a745";
+        });
       });
 
       peer.on('error', (err) => {
-        document.getElementById('status').innerText = "Erro na conexão ou live encerrada.";
-        document.getElementById('status').style.color = "#dc3545";
-      });
-    }
-
-    function solicitarTransmissao(peer, targetRoom) {
-      const call = peer.call(targetRoom, null);
-
-      if (!call) {
-        document.getElementById('status').innerText = "Não foi possível conectar. Tentando novamente...";
-        setTimeout(() => solicitarTransmissao(peer, targetRoom), 2000);
-        return;
-      }
-
-      call.on('stream', (remoteStream) => {
-        document.getElementById('remoteVideo').srcObject = remoteStream;
-        document.getElementById('status').innerText = "🟢 ASSISTINDO AO VIVO";
-        document.getElementById('status').style.color = "#28a745";
-      });
-
-      call.on('close', () => {
-        document.getElementById('status').innerText = "A transmissão foi encerrada.";
+        document.getElementById('status').innerText = "Transmissão não encontrada ou offline.";
         document.getElementById('status').style.color = "#dc3545";
       });
     }
