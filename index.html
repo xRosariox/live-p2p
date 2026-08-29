@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Transmissor P2P</title>
+  <title>Transmissor P2P High-FPS</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; text-align: center; }
@@ -12,11 +12,11 @@
   </style>
 </head>
 <body>
-  <h2>🔴 Painel do Transmissor</h2>
+  <h2>🔴 Transmissor P2P (2K @ 144 FPS)</h2>
   <button onclick="iniciar()">Iniciar Transmissão</button><br><br>
 
   <div id="linkArea" style="display:none;">
-    <p>Envie este link para o espectador:</p>
+    <p>Link para o Espectador:</p>
     <input type="text" id="shareLink" readonly onclick="this.select()">
   </div>
 
@@ -29,7 +29,16 @@
 
     async function iniciar() {
       try {
-        localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        // Solicitando explicitamente 2K e 144 FPS no navegador
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            width: { ideal: 2560, max: 2560 },
+            height: { ideal: 1440, max: 1440 },
+            frameRate: { ideal: 144, max: 144 }
+          },
+          audio: true
+        });
+
         document.getElementById('preview').srcObject = localStream;
 
         const roomId = 'live-' + Math.random().toString(36).substring(2, 8);
@@ -41,12 +50,27 @@
           
           document.getElementById('shareLink').value = fullLink;
           document.getElementById('linkArea').style.display = 'block';
-          document.getElementById('status').innerText = "🟢 TRANSMITINDO AO VIVO!";
+          document.getElementById('status').innerText = "🟢 TRANSMITINDO EM ALTA PERFORMANCE!";
           document.getElementById('status').style.color = "#28a745";
         });
 
-        peer.on('call', (call) => {
-          call.answer(localStream);
+        // Quando o espectador conecta via dados, o transmissor inicia a chamada
+        peer.on('connection', (conn) => {
+          conn.on('open', () => {
+            const call = peer.call(conn.peer, localStream);
+            
+            // Removendo limites de bitrate para suportar os 144fps em 2K
+            if (call && call.peerConnection) {
+              call.peerConnection.getSenders().forEach(sender => {
+                if (sender.track && sender.track.kind === 'video') {
+                  const parameters = sender.getParameters();
+                  if (!parameters.encodings) parameters.encodings = [{}];
+                  parameters.encodings[0].maxBitrate = 25000000; // 25 Mbps
+                  sender.setParameters(parameters).catch(e => console.error(e));
+                }
+              });
+            }
+          });
         });
 
       } catch (err) {
