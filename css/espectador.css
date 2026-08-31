@@ -1,31 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-  background-color: #111;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background-color: #0d0d0d;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.08), transparent);
   color: #fff;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
 }
 
-/* Card que envolve o player */
-.video-card {
+/* ── Wrapper central ── */
+.page-wrapper {
   width: 90%;
   max-width: 960px;
-  background: #1a1a1a;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 0;
 }
 
-/* Container do vídeo mantém proporção 16:9 */
+/* ── Header ── */
+.stream-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+}
+
+.stream-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #888;
+}
+
+.stream-icon {
+  color: #6366f1;
+  flex-shrink: 0;
+}
+
+.stream-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #aaa;
+  letter-spacing: 0.01em;
+}
+
+/* Badge de status no header */
+.stream-badge {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #666;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s ease;
+}
+
+.stream-badge.online {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+/* ── Card do player ── */
+.video-card {
+  width: 100%;
+  background: #111;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 80px rgba(99, 102, 241, 0.04);
+  overflow: hidden;
+}
+
+/* Container 16:9 */
 .video-container {
   position: relative;
   width: 100%;
@@ -43,18 +104,224 @@ video {
   display: block;
 }
 
+/* ── Overlay de status (conectando...) ── */
 .overlay-status {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.8);
-  padding: 20px 30px;
-  border-radius: 8px;
-  border: 1px solid #333;
-  font-size: 16px;
-  color: #adadb8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
   pointer-events: none;
   z-index: 10;
   text-align: center;
+}
+
+.overlay-icon {
+  color: #6366f1;
+  opacity: 0.8;
+}
+
+.overlay-status span {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Animação de spin no ícone de loading */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  transform-origin: center;
+}
+
+/* ── Métricas ── */
+.metrics-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.metrics-overlay.visible {
+  display: flex;
+}
+
+.metric-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e53e3e;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+
+.live-label {
+  color: #e53e3e;
+  letter-spacing: 0.06em;
+}
+
+.live-timer {
+  color: #ddd;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-stats {
+  display: flex;
+  gap: 6px;
+}
+
+.metric-item {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11px;
+  font-weight: 500;
+  color: #999;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Botão toggle métricas ── */
+.metrics-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.metrics-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ccc;
+}
+
+.metrics-toggle.active {
+  display: flex;
+}
+
+/* ── Rodapé ── */
+.stream-footer {
+  text-align: center;
+  padding: 0 4px;
+}
+
+.stream-footer span {
+  font-size: 12px;
+  color: #333;
+  letter-spacing: 0.02em;
+}
+
+
+/* ── Responsividade mobile ── */
+
+/* Tablet e abaixo (≤ 600px) */
+@media (max-width: 600px) {
+  .page-wrapper {
+    width: 100%;
+    gap: 8px;
+    padding: 12px 0 20px;
+  }
+
+  /* Header mais compacto */
+  .stream-header {
+    padding: 0 12px;
+  }
+
+  .stream-title {
+    font-size: 13px;
+  }
+
+  /* Card sem bordas arredondadas nas laterais em telas muito pequenas */
+  .video-card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+
+  /* Métricas menores pra não cobrir o vídeo */
+  .metric-live {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .metric-item {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .live-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  /* Botão toggle um pouco menor */
+  .metrics-toggle {
+    width: 26px;
+    height: 26px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .metrics-overlay {
+    top: 8px;
+    left: 8px;
+    gap: 4px;
+  }
+
+  /* Rodapé */
+  .stream-footer {
+    padding: 0 12px;
+  }
+}
+
+/* Telas muito pequenas (≤ 360px) — esconde título do header pra não quebrar */
+@media (max-width: 360px) {
+  .stream-title {
+    display: none;
+  }
 }
