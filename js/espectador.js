@@ -81,9 +81,6 @@ if (!roomId) {
       // Navegadores modernos bloqueiam autoplay com áudio sem interação do usuário
       remoteVideo.play().catch(() => {
         // Se o autoplay for bloqueado, mostra um aviso pedindo que o usuário clique
-        statusOverlay.style.display = 'block';
-        statusOverlay.innerText = "Clique na tela para iniciar o áudio/vídeo";
-
         // Aguarda um clique do usuário para tentar dar play novamente
         // { once: true } = remove o listener automaticamente após o primeiro clique
         window.addEventListener('click', () => {
