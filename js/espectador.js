@@ -27,10 +27,6 @@ const metricsToggle  = document.getElementById('metricsToggle');
 const liveTimer      = document.getElementById('liveTimer');
 const metricFps      = document.getElementById('metricFps');
 const metricLatency  = document.getElementById('metricLatency');
-const fullscreenBtn  = document.getElementById('fullscreenBtn');
-const fsIconExpand   = document.getElementById('fsIconExpand');
-const fsIconCollapse = document.getElementById('fsIconCollapse');
-const videoContainer = document.querySelector('.video-container');
 
 // Atualiza texto de status no overlay e no badge do header
 function setStatus(text) {
@@ -213,8 +209,6 @@ function stopMetrics() {
   clearInterval(statsInterval);
   metricsOverlay.classList.remove('visible');
   metricsToggle.classList.remove('active');
-  fullscreenBtn.classList.remove('active');
-  if (document.fullscreenElement) document.exitFullscreen();
 }
 
 // ============================================================
@@ -224,37 +218,6 @@ metricsToggle.addEventListener('click', () => {
   const isVisible = metricsOverlay.classList.toggle('visible');
   metricsToggle.title = isVisible ? 'Ocultar métricas' : 'Mostrar métricas';
 });
-
-// ============================================================
-// BOTÃO FULLSCREEN
-// Usa a Fullscreen API nativa do navegador.
-// Entra em fullscreen no container do player (não só no <video>)
-// para manter as métricas e controles visíveis.
-// ============================================================
-function atualizarIconeFullscreen() {
-  const estaFull = !!document.fullscreenElement;
-  fsIconExpand.style.display   = estaFull ? 'none'  : 'block';
-  fsIconCollapse.style.display = estaFull ? 'block' : 'none';
-  fullscreenBtn.title = estaFull ? 'Sair da tela cheia' : 'Tela cheia';
-}
-
-fullscreenBtn.addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    videoContainer.requestFullscreen().catch(err => {
-      console.warn('Fullscreen não suportado:', err);
-    });
-  } else {
-    document.exitFullscreen();
-  }
-});
-
-// Sincroniza o ícone quando o usuário sai do fullscreen pelo Esc
-document.addEventListener('fullscreenchange', atualizarIconeFullscreen);
-
-// Ativa o botão de fullscreen quando o stream chegar (junto com as métricas)
-function ativarControlesPlayer() {
-  fullscreenBtn.classList.add('active');
-}
 
 // ============================================================
 // VALIDA O ROOM ID
@@ -366,7 +329,6 @@ if (!roomId) {
           // Autoplay bloqueado — usuário pode dar play manualmente
         });
 
-        ativarControlesPlayer();
         showMetrics(call, conn);
       });
 
