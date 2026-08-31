@@ -98,6 +98,7 @@ body {
     0 20px 60px rgba(0, 0, 0, 0.5),
     0 0 80px rgba(99, 102, 241, 0.04);
   overflow: hidden;
+  position: relative; /* âncora para métricas e toggle */
 }
 
 /* Container 16:9 */

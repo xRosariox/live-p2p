@@ -47,27 +47,28 @@
         <!-- Player -->
         <video id="remoteVideo" autoplay playsinline controls></video>
 
-        <!-- Métricas -->
-        <div class="metrics-overlay" id="metricsOverlay">
-          <div class="metric-live">
-            <span class="live-dot"></span>
-            <span class="live-label">AO VIVO</span>
-            <span class="live-timer" id="liveTimer">00:00:00</span>
-          </div>
-          <div class="metric-stats">
-            <span class="metric-item" id="metricFps">FPS: --</span>
-            <span class="metric-item" id="metricLatency">Latência: --</span>
-          </div>
-        </div>
-
-        <!-- Botão toggle métricas -->
-        <button class="metrics-toggle" id="metricsToggle" title="Ocultar métricas">
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-          </svg>
-        </button>
-
       </div>
+
+      <!-- Métricas ficam fora do video-container para não ficarem atrás dos controles nativos do vídeo -->
+      <div class="metrics-overlay" id="metricsOverlay">
+        <div class="metric-live">
+          <span class="live-dot"></span>
+          <span class="live-label">AO VIVO</span>
+          <span class="live-timer" id="liveTimer">00:00:00</span>
+        </div>
+        <div class="metric-stats">
+          <span class="metric-item" id="metricFps">FPS: --</span>
+          <span class="metric-item" id="metricLatency">Latência: --</span>
+        </div>
+      </div>
+
+      <!-- Botão toggle métricas -->
+      <button class="metrics-toggle" id="metricsToggle" title="Ocultar métricas">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      </button>
+
     </div>
 
     <!-- Rodapé -->
