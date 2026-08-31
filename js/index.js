@@ -143,12 +143,20 @@ async function iniciar() {
     // Retorna um MediaStream com trilhas de vídeo (e áudio, se disponível)
     localStream = await navigator.mediaDevices.getDisplayMedia({
       video: {
-        width:     { ideal: resConfig.width },   // Pede a resolução ideal escolhida
+        width:     { ideal: resConfig.width },
         height:    { ideal: resConfig.height },
-        frameRate: { ideal: fpsVal }             // Pede o FPS ideal escolhido
+        frameRate: { ideal: fpsVal }
       },
-      audio: true,                               // Captura áudio do sistema também
-      selfBrowserSurface: "exclude"              // Impede que o próprio navegador apareça como opção
+      audio: {
+        // Desabilita processamento de áudio automático do WebRTC.
+        // AGC (autoGainControl) abaixa o volume progressivamente com o tempo.
+        // noiseSuppression e echoCancellation também distorcem áudio de sistema.
+        // Nenhum desses faz sentido para captura de tela — são para microfone.
+        autoGainControl:  false,
+        noiseSuppression: false,
+        echoCancellation: false
+      },
+      selfBrowserSurface: "exclude"
     });
 
     // Exibe o stream localmente no <video id="preview"> para o transmissor ver o que está enviando

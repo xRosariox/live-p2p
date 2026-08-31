@@ -273,6 +273,10 @@ if (!roomId) {
   function conectar() {
     streamReceived = false;
 
+    // conn declarado no escopo de conectar() para que o handler de 'call'
+    // também tenha acesso ao mesmo objeto (qualidade adaptativa usa conn.send)
+    let conn = null;
+
     viewerPeer = new Peer(peerConfig);
 
     viewerPeer.on('open', () => {
@@ -280,7 +284,7 @@ if (!roomId) {
         ? `Reconectando... (tentativa ${reconnectCount}/${MAX_RECONNECT})`
         : "Procurando transmissor...");
 
-      const conn = viewerPeer.connect(roomId);
+      conn = viewerPeer.connect(roomId);
 
       // ── Timeout: se em 15s o stream não chegar, avisa o usuário ──
       connectionTimer = setTimeout(() => {
@@ -315,7 +319,7 @@ if (!roomId) {
       call.on('stream', (remoteStream) => {
         streamReceived = true;
         clearConnectionTimer();
-        reconnectCount = 0; // reseta contador ao conectar com sucesso
+        reconnectCount = 0;
 
         statusOverlay.style.display = 'none';
         remoteVideo.srcObject = remoteStream;
@@ -329,6 +333,7 @@ if (!roomId) {
           // Autoplay bloqueado — usuário pode dar play manualmente
         });
 
+        // conn já está no escopo de conectar(), acessível aqui
         showMetrics(call, conn);
       });
 
