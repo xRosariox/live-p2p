@@ -14,22 +14,22 @@
 </head>
 <body>
 
-  <!-- Container principal: ocupa 100% da tela (definido no CSS) -->
-  <!-- Centraliza o vídeo e posiciona o overlay de status por cima -->
-  <div class="video-container">
+  <!-- Card centralizado que contém o player -->
+  <div class="video-card">
 
-    <!-- Overlay de status: mensagem exibida sobre o vídeo durante a conexão -->
-    <!-- O JS atualiza o texto conforme o estado: "Conectando...", "Aguardando vídeo...", etc. -->
-    <!-- Quando o vídeo começa, o JS esconde esse elemento com style.display = 'none' -->
-    <div class="overlay-status" id="statusOverlay">
-      Conectando à transmissão...
+    <!-- Container do vídeo em proporção 16:9 -->
+    <div class="video-container">
+
+      <!-- Overlay de status exibido durante a conexão -->
+      <div class="overlay-status" id="statusOverlay">
+        Conectando à transmissão...
+      </div>
+
+      <!-- Player de vídeo — o botão de fullscreen fica nos controles nativos -->
+      <video id="remoteVideo" autoplay playsinline controls></video>
+
     </div>
 
-    <!-- Elemento de vídeo onde o stream do transmissor será exibido -->
-    <!-- autoplay: tenta dar play assim que o stream chegar -->
-    <!-- playsinline: necessário em iOS para não abrir em tela cheia forçada -->
-    <!-- controls: exibe os controles nativos do navegador (play/pause, volume, fullscreen) -->
-    <video id="remoteVideo" autoplay playsinline controls></video>
   </div>
 
   <!-- Script do espectador carregado no final do body -->
