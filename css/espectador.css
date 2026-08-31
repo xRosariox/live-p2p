@@ -13,15 +13,18 @@ body {
     radial-gradient(ellipse 80% 50% at 50% -10%, rgba(99, 102, 241, 0.08), transparent);
   color: #fff;
   min-height: 100vh;
+  min-height: 100dvh; /* iOS Safari: usa altura dinâmica real da viewport */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0)
+           env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
 }
 
 /* ── Wrapper central ── */
 .page-wrapper {
-  width: 90%;
-  max-width: 960px;
+  width: min(90%, 960px); /* nunca ultrapassa 960px, nunca ultrapassa 90vw */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -264,34 +267,47 @@ video {
   .page-wrapper {
     width: 100%;
     gap: 8px;
-    padding: 12px 0 20px;
+    padding: 16px 0 24px;
   }
 
-  /* Header mais compacto */
+  /* Header com padding lateral */
   .stream-header {
-    padding: 0 12px;
+    padding: 0 16px;
   }
 
   .stream-title {
     font-size: 13px;
   }
 
-  /* Card sem bordas arredondadas nas laterais em telas muito pequenas */
+  /* Card sem bordas arredondadas nas laterais */
   .video-card {
     border-radius: 0;
     border-left: none;
     border-right: none;
   }
 
-  /* Métricas menores pra não cobrir o vídeo */
+  /* Métricas menores e com max-width pra não sair da tela */
+  .metrics-overlay {
+    top: 8px;
+    left: 8px;
+    gap: 4px;
+    max-width: calc(100% - 52px); /* garante que não sobrepõe o botão toggle */
+  }
+
   .metric-live {
-    font-size: 11px;
-    padding: 3px 8px;
+    font-size: 10px;
+    padding: 3px 7px;
+    gap: 5px;
+  }
+
+  .metric-stats {
+    flex-wrap: wrap;
+    gap: 4px;
   }
 
   .metric-item {
     font-size: 10px;
-    padding: 3px 8px;
+    padding: 3px 7px;
   }
 
   .live-dot {
@@ -299,7 +315,7 @@ video {
     height: 6px;
   }
 
-  /* Botão toggle um pouco menor */
+  /* Botão toggle menor */
   .metrics-toggle {
     width: 26px;
     height: 26px;
@@ -307,19 +323,13 @@ video {
     right: 8px;
   }
 
-  .metrics-overlay {
-    top: 8px;
-    left: 8px;
-    gap: 4px;
-  }
-
-  /* Rodapé */
+  /* Rodapé com padding lateral */
   .stream-footer {
-    padding: 0 12px;
+    padding: 0 16px;
   }
 }
 
-/* Telas muito pequenas (≤ 360px) — esconde título do header pra não quebrar */
+/* Telas muito pequenas (≤ 360px) — esconde título do header */
 @media (max-width: 360px) {
   .stream-title {
     display: none;
