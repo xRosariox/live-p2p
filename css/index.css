@@ -127,6 +127,11 @@ select {
   color: #fff;
 }
 
+.viewer-count {
+  font-size: 13px;
+  color: #adadb8;
+}
+
 .timer {
   font-family: monospace;
   font-size: 15px;

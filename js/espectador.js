@@ -27,6 +27,10 @@ const metricsToggle  = document.getElementById('metricsToggle');
 const liveTimer      = document.getElementById('liveTimer');
 const metricFps      = document.getElementById('metricFps');
 const metricLatency  = document.getElementById('metricLatency');
+const fullscreenBtn  = document.getElementById('fullscreenBtn');
+const fsIconExpand   = document.getElementById('fsIconExpand');
+const fsIconCollapse = document.getElementById('fsIconCollapse');
+const videoContainer = document.querySelector('.video-container');
 
 // Atualiza texto de status no overlay e no badge do header
 function setStatus(text) {
@@ -43,6 +47,18 @@ let fpsInterval      = null; // intervalo de leitura de FPS
 let statsInterval    = null; // intervalo de leitura de latência
 let lastFrameCount   = 0;    // frames contados no ciclo anterior
 let activeCall       = null; // referência à call ativa (para getStats)
+
+// Qualidade adaptativa: níveis de bitrate que o espectador pode solicitar
+// O transmissor aplica o valor recebido via setParameters
+const QUALITY_LEVELS = [
+  { label: 'alta',   maxBitrate: 12_000_000 }, // padrão — boa rede
+  { label: 'média',  maxBitrate:  4_000_000 }, // latência moderada
+  { label: 'baixa',  maxBitrate:  1_500_000 }, // latência alta
+];
+let currentQualityIndex = 0; // começa no nível mais alto
+let highLatencyCount    = 0; // contagem de amostras com latência alta
+let lowLatencyCount     = 0; // contagem de amostras com latência baixa
+const SAMPLES_TO_CHANGE = 3; // amostras consecutivas antes de mudar de nível
 
 // ============================================================
 // FORMATA SEGUNDOS EM HH:MM:SS
@@ -108,10 +124,11 @@ function startFpsTracking() {
 
 // ============================================================
 // INICIA LEITURA DE LATÊNCIA via RTCPeerConnection.getStats()
-// Usa o candidato de par ativo para ler currentRoundTripTime,
-// que representa o RTT da conexão ICE em segundos.
+// Também aplica qualidade adaptativa: se a latência ficar alta
+// por 3 amostras consecutivas, pede ao transmissor para reduzir
+// o bitrate via mensagem de dados (conn.send).
 // ============================================================
-function startLatencyTracking(call) {
+function startLatencyTracking(call, conn) {
   activeCall = call;
 
   statsInterval = setInterval(async () => {
@@ -121,7 +138,6 @@ function startLatencyTracking(call) {
       const stats = await activeCall.peerConnection.getStats();
 
       stats.forEach(report => {
-        // Procura pelo candidato de par ICE ativo com RTT disponível
         if (
           report.type === 'candidate-pair' &&
           report.state === 'succeeded' &&
@@ -129,6 +145,45 @@ function startLatencyTracking(call) {
         ) {
           const latencyMs = Math.round(report.currentRoundTripTime * 1000);
           metricLatency.textContent = `Latência: ${latencyMs}ms`;
+
+          // ── Qualidade adaptativa ──
+          // Latência acima de 200ms: conta amostras ruins → pede redução de qualidade
+          if (latencyMs > 200) {
+            highLatencyCount++;
+            lowLatencyCount = 0;
+
+            if (
+              highLatencyCount >= SAMPLES_TO_CHANGE &&
+              currentQualityIndex < QUALITY_LEVELS.length - 1
+            ) {
+              currentQualityIndex++;
+              highLatencyCount = 0;
+              const nivel = QUALITY_LEVELS[currentQualityIndex];
+              console.info(`[Qualidade adaptativa] Latência alta (${latencyMs}ms) → reduzindo para ${nivel.label}`);
+              conn?.send?.({ type: 'quality', maxBitrate: nivel.maxBitrate });
+            }
+
+          // Latência abaixo de 80ms: conta amostras boas → tenta subir qualidade
+          } else if (latencyMs < 80) {
+            lowLatencyCount++;
+            highLatencyCount = 0;
+
+            if (
+              lowLatencyCount >= SAMPLES_TO_CHANGE * 2 && // exige mais amostras para subir
+              currentQualityIndex > 0
+            ) {
+              currentQualityIndex--;
+              lowLatencyCount = 0;
+              const nivel = QUALITY_LEVELS[currentQualityIndex];
+              console.info(`[Qualidade adaptativa] Latência boa (${latencyMs}ms) → subindo para ${nivel.label}`);
+              conn?.send?.({ type: 'quality', maxBitrate: nivel.maxBitrate });
+            }
+
+          } else {
+            // Latência estável — reseta os contadores
+            highLatencyCount = 0;
+            lowLatencyCount  = 0;
+          }
         }
       });
     } catch {
@@ -140,13 +195,13 @@ function startLatencyTracking(call) {
 // ============================================================
 // EXIBE AS MÉTRICAS QUANDO O STREAM INICIA
 // ============================================================
-function showMetrics(call) {
+function showMetrics(call, conn) {
   metricsOverlay.classList.add('visible');
   metricsToggle.classList.add('active');
 
   startLiveTimer();
   startFpsTracking();
-  startLatencyTracking(call);
+  startLatencyTracking(call, conn);
 }
 
 // ============================================================
@@ -158,6 +213,8 @@ function stopMetrics() {
   clearInterval(statsInterval);
   metricsOverlay.classList.remove('visible');
   metricsToggle.classList.remove('active');
+  fullscreenBtn.classList.remove('active');
+  if (document.fullscreenElement) document.exitFullscreen();
 }
 
 // ============================================================
@@ -169,61 +226,197 @@ metricsToggle.addEventListener('click', () => {
 });
 
 // ============================================================
+// BOTÃO FULLSCREEN
+// Usa a Fullscreen API nativa do navegador.
+// Entra em fullscreen no container do player (não só no <video>)
+// para manter as métricas e controles visíveis.
+// ============================================================
+function atualizarIconeFullscreen() {
+  const estaFull = !!document.fullscreenElement;
+  fsIconExpand.style.display   = estaFull ? 'none'  : 'block';
+  fsIconCollapse.style.display = estaFull ? 'block' : 'none';
+  fullscreenBtn.title = estaFull ? 'Sair da tela cheia' : 'Tela cheia';
+}
+
+fullscreenBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    videoContainer.requestFullscreen().catch(err => {
+      console.warn('Fullscreen não suportado:', err);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+// Sincroniza o ícone quando o usuário sai do fullscreen pelo Esc
+document.addEventListener('fullscreenchange', atualizarIconeFullscreen);
+
+// Ativa o botão de fullscreen quando o stream chegar (junto com as métricas)
+function ativarControlesPlayer() {
+  fullscreenBtn.classList.add('active');
+}
+
+// ============================================================
+// VALIDA O ROOM ID
+// Aceita apenas letras, números e hífen, com comprimento razoável.
+// Evita strings maliciosas ou vazias que poderiam causar erros.
+// ============================================================
+function isValidRoomId(id) {
+  return typeof id === 'string' && /^[a-zA-Z0-9_-]{3,64}$/.test(id);
+}
+
+// ============================================================
 // FLUXO PRINCIPAL
 // ============================================================
+
+// Sem room na URL
 if (!roomId) {
   setStatus("Código de transmissão não encontrado no link.");
+
+// Room inválido (injeção, string estranha, etc.)
+} else if (!isValidRoomId(roomId)) {
+  setStatus("Link de transmissão inválido.");
+
 } else {
-  const viewerPeer = new Peer(peerConfig);
 
-  viewerPeer.on('open', (viewerId) => {
-    setStatus("Procurando transmissor...");
+  let viewerPeer      = null;
+  let connectionTimer = null; // timeout de 15s esperando o stream chegar
+  let streamReceived  = false;
+  let reconnectTimer  = null;
+  let reconnectCount  = 0;
+  const MAX_RECONNECT = 5; // tentativas máximas de reconexão
 
-    const conn = viewerPeer.connect(roomId);
+  // ── Encerra o timer de timeout se o stream chegou ──
+  function clearConnectionTimer() {
+    if (connectionTimer) {
+      clearTimeout(connectionTimer);
+      connectionTimer = null;
+    }
+  }
 
-    conn.on('open', () => {
-      setStatus("Aguardando sinal de vídeo...");
-    });
+  // ── Mostra overlay de erro ──
+  function showError(msg) {
+    clearConnectionTimer();
+    stopMetrics();
+    statusOverlay.style.display = 'flex';
+    setStatus(msg);
+    if (streamBadge) {
+      streamBadge.textContent = 'Encerrada';
+      streamBadge.classList.remove('online');
+    }
+  }
 
-    conn.on('error', (err) => {
-      setStatus("Erro na conexão de dados: " + err);
-    });
-  });
+  // ── Tenta conectar ao transmissor ──
+  function conectar() {
+    streamReceived = false;
 
-  viewerPeer.on('call', (call) => {
-    call.answer();
+    viewerPeer = new Peer(peerConfig);
 
-    call.on('stream', (remoteStream) => {
-      statusOverlay.style.display = 'none';
-      remoteVideo.srcObject = remoteStream;
+    viewerPeer.on('open', () => {
+      setStatus(reconnectCount > 0
+        ? `Reconectando... (tentativa ${reconnectCount}/${MAX_RECONNECT})`
+        : "Procurando transmissor...");
 
-      // Badge do header fica verde
-      if (streamBadge) {
-        streamBadge.textContent = 'Ao vivo';
-        streamBadge.classList.add('online');
-      }
+      const conn = viewerPeer.connect(roomId);
 
-      remoteVideo.play().catch(() => {
-        // Autoplay bloqueado — aguarda clique no botão de play do player
+      // ── Timeout: se em 15s o stream não chegar, avisa o usuário ──
+      connectionTimer = setTimeout(() => {
+        if (!streamReceived) {
+          showError("Transmissão não encontrada ou transmissor offline.");
+        }
+      }, 15000);
+
+      conn.on('open', () => {
+        setStatus("Aguardando sinal de vídeo...");
       });
 
-      // Inicia métricas assim que o stream chegar
-      showMetrics(call);
+      // ── Cleanup correto quando a conexão de dados fechar ──
+      conn.on('close', () => {
+        if (!streamReceived) {
+          clearConnectionTimer();
+          tentarReconectar();
+        }
+      });
+
+      conn.on('error', (err) => {
+        clearConnectionTimer();
+        setStatus("Erro na conexão: " + err);
+        tentarReconectar();
+      });
     });
 
-    call.on('close', () => {
-      stopMetrics();
-      statusOverlay.style.display = 'flex';
-      setStatus("A transmissão foi encerrada.");
-      if (streamBadge) {
-        streamBadge.textContent = 'Encerrada';
-        streamBadge.classList.remove('online');
+    // ── Recebe a chamada de vídeo do transmissor ──
+    viewerPeer.on('call', (call) => {
+      call.answer();
+
+      call.on('stream', (remoteStream) => {
+        streamReceived = true;
+        clearConnectionTimer();
+        reconnectCount = 0; // reseta contador ao conectar com sucesso
+
+        statusOverlay.style.display = 'none';
+        remoteVideo.srcObject = remoteStream;
+
+        if (streamBadge) {
+          streamBadge.textContent = 'Ao vivo';
+          streamBadge.classList.add('online');
+        }
+
+        remoteVideo.play().catch(() => {
+          // Autoplay bloqueado — usuário pode dar play manualmente
+        });
+
+        ativarControlesPlayer();
+        showMetrics(call, conn);
+      });
+
+      // ── Transmissão encerrada pelo transmissor ──
+      call.on('close', () => {
+        showError("A transmissão foi encerrada.");
+      });
+
+      call.on('error', () => {
+        showError("Erro na transmissão de vídeo.");
+        tentarReconectar();
+      });
+    });
+
+    viewerPeer.on('error', (err) => {
+      clearConnectionTimer();
+      // peer-unavailable = transmissor não existe (ainda) — vale tentar reconectar
+      if (err.type === 'peer-unavailable') {
+        tentarReconectar();
+      } else {
+        showError("Erro ao conectar: " + err.type);
       }
     });
-  });
+  }
 
-  viewerPeer.on('error', (err) => {
-    statusOverlay.style.display = 'flex';
-    setStatus("Erro ao conectar: " + err.type);
-  });
+  // ── Reconexão automática com backoff exponencial ──
+  function tentarReconectar() {
+    if (reconnectCount >= MAX_RECONNECT) {
+      showError("Não foi possível conectar à transmissão após várias tentativas.");
+      return;
+    }
+
+    reconnectCount++;
+
+    // Destrói o peer atual antes de criar um novo
+    if (viewerPeer && !viewerPeer.destroyed) {
+      viewerPeer.destroy();
+    }
+
+    stopMetrics();
+
+    // Backoff: 2s, 4s, 8s, 16s, 32s
+    const delay = Math.min(2000 * Math.pow(2, reconnectCount - 1), 30000);
+    setStatus(`Reconectando em ${Math.round(delay / 1000)}s... (${reconnectCount}/${MAX_RECONNECT})`);
+
+    reconnectTimer = setTimeout(() => {
+      conectar();
+    }, delay);
+  }
+
+  // Inicia a conexão
+  conectar();
 }

@@ -7,6 +7,7 @@ let peer = null;          // Objeto PeerJS — representa a conexão deste trans
 let localStream = null;   // Stream de vídeo/áudio capturado da tela do usuário
 let timerInterval = null; // Referência ao setInterval do cronômetro (para poder pausá-lo depois)
 let secondsElapsed = 0;   // Contador de segundos desde o início da transmissão
+const activeCalls = new Map(); // Mapa peerId → call — controla todos os espectadores ativos
 
 // ============================================================
 // CONFIGURAÇÃO DO PEERJS (ICE SERVERS / STUN)
@@ -66,15 +67,59 @@ function stopTimer() {
 }
 
 // ============================================================
+// FUNÇÃO: atualizarContadorEspectadores
+// Atualiza o badge de contagem na barra de status.
+// Lê o tamanho do Map activeCalls, que só contém calls abertas.
+// ============================================================
+function atualizarContadorEspectadores() {
+  const el = document.getElementById('viewerCount');
+  if (el) el.textContent = `👥 ${activeCalls.size}`;
+}
+
+// ============================================================
 // FUNÇÃO: copiarLink
 // Seleciona o texto do input com o link do espectador
 // e copia para a área de transferência do usuário
 // ============================================================
 function copiarLink() {
   const input = document.getElementById('shareLink');
-  input.select(); // Seleciona visualmente o texto no campo
-  navigator.clipboard.writeText(input.value); // Copia para o clipboard
-  alert("Link copiado!");
+  const btn   = document.querySelector('.btn-copy');
+
+  input.select();
+  navigator.clipboard.writeText(input.value)
+    .then(() => {
+      // Feedback visual de sucesso
+      const original = btn.textContent;
+      btn.textContent = '✓ Copiado';
+      btn.style.background = '#1a9b5f';
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 2000);
+    })
+    .catch(() => {
+      // Fallback para navegadores sem suporte à Clipboard API
+      try {
+        document.execCommand('copy');
+        btn.textContent = '✓ Copiado';
+        btn.style.background = '#1a9b5f';
+        btn.disabled = true;
+        setTimeout(() => {
+          btn.textContent = 'Copiar';
+          btn.style.background = '';
+          btn.disabled = false;
+        }, 2000);
+      } catch {
+        btn.textContent = '✗ Falhou';
+        btn.style.background = '#eb0400';
+        setTimeout(() => {
+          btn.textContent = 'Copiar';
+          btn.style.background = '';
+        }, 2000);
+      }
+    });
 }
 
 // ============================================================
@@ -143,32 +188,63 @@ async function iniciar() {
     });
 
     // Evento 'connection': disparado quando um espectador abre o link e se conecta
-    // O PeerJS usa essa conexão de dados para saber o ID do espectador
     peer.on('connection', (conn) => {
-      // Quando a conexão de dados estiver aberta, fazemos a chamada de vídeo para o espectador
       conn.on('open', () => {
-        // peer.call() = inicia uma "chamada" P2P enviando o localStream para o espectador
         const call = peer.call(conn.peer, localStream);
 
-        // Ajusta o bitrate máximo de vídeo via WebRTC RTCRtpSender
-        if (call && call.peerConnection) {
+        // Registra a call no mapa — garante suporte a múltiplos espectadores simultâneos
+        activeCalls.set(conn.peer, call);
+        atualizarContadorEspectadores();
+
+        // Aguarda a conexão ICE estar estabelecida antes de aplicar o bitrate.
+        // setParameters falha silenciosamente se chamado antes de 'connected'.
+        function aplicarBitrate(targetBitrate) {
+          if (!call?.peerConnection) return;
+
           call.peerConnection.getSenders().forEach(sender => {
-            if (sender.track && sender.track.kind === 'video') {
+            if (sender.track?.kind === 'video') {
               const parameters = sender.getParameters();
-              if (!parameters.encodings) parameters.encodings = [{}];
-
-              // Bitrate padrão: 12 Mbps (suficiente para 1080p/60fps)
-              // Para resoluções altas (1440p/4K) ou FPS alto (120+): usa 30 Mbps
-              let targetBitrate = 12000000;
-              if (resKey === "1440" || resKey === "2160" || fpsVal >= 120) {
-                targetBitrate = 30000000;
+              if (!parameters.encodings || parameters.encodings.length === 0) {
+                parameters.encodings = [{}];
               }
-
               parameters.encodings[0].maxBitrate = targetBitrate;
-              sender.setParameters(parameters).catch(e => console.error(e));
+              sender.setParameters(parameters).catch(e =>
+                console.warn('setParameters falhou:', e)
+              );
             }
           });
         }
+
+        // Bitrate inicial baseado na qualidade escolhida
+        const bitrateInicial = (resKey === "1440" || resKey === "2160" || fpsVal >= 120)
+          ? 30_000_000
+          : 12_000_000;
+
+        // Aplica quando o ICE conectar (momento correto garantido)
+        call.peerConnection.addEventListener('iceconnectionstatechange', () => {
+          if (call.peerConnection.iceConnectionState === 'connected') {
+            aplicarBitrate(bitrateInicial);
+          }
+        });
+
+        // Escuta pedidos de qualidade adaptativa vindos do espectador
+        conn.on('data', (data) => {
+          if (data?.type === 'quality' && typeof data.maxBitrate === 'number') {
+            console.info(`[Qualidade adaptativa] Espectador ${conn.peer} pediu ${data.maxBitrate / 1_000_000}Mbps`);
+            aplicarBitrate(data.maxBitrate);
+          }
+        });
+
+        // Remove do mapa quando o espectador desconectar
+        call.on('close', () => {
+          activeCalls.delete(conn.peer);
+          atualizarContadorEspectadores();
+        });
+
+        conn.on('close', () => {
+          activeCalls.delete(conn.peer);
+          atualizarContadorEspectadores();
+        });
       });
     });
 
@@ -192,6 +268,10 @@ function parar() {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
   }
+
+  // Encerra todas as calls ativas antes de destruir o peer
+  activeCalls.forEach(call => call.close());
+  activeCalls.clear();
 
   // Destrói a conexão PeerJS, desconectando todos os espectadores
   if (peer) {
